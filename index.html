@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rates</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+    <link rel="stylesheet" href="app.min.css">
+    <style>
+		body, html {
+			height: 100%;
+		}
+
+		#right {
+			height: 100%;
+		}
+		
+		#world_div {
+			height: 100vh;
+		}
+    </style>
+  </head>
+
+  <body>
+    <div class="app-page" data-page="home" id="world_div">
+      <div class="app-topbar">
+        <div class="app-title">Get The Rates</div>
+      </div>
+      <div class="app-content">
+        <div class="app-section">
+		  
+		  <input id="input1" type="text" value="CAD" onkeydown="if (event.keyCode=13) 
+																	document.getElementById('getButton').click()"><br>
+		  <input id="input2" type="text" value="USD" onkeydown="if (event.keyCode=13) 
+																	document.getElementById('getButton').click()"><br>
+		  
+		  <div id="getButton" class="app-button" onclick="getInput();">Check</div>
+		  <div id="getSave" class="app-button" onclick="download();">Download</div>
+		  <div id="InfoArea"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="zepto.js"></script>
+    <script src="app.min.js"></script>
+	<script src="http://d3js.org/d3.v3.min.js"></script>
+	<script src="http://dimplejs.org/dist/dimple.v2.1.6.min.js"></script>
+    <script>
+	
+		var from_input = "";
+		var to_input = "";
+		var time = new Date().toTimeString().split(" ")[0];
+		var first = true;
+		var c_max = 0;
+		var c_min = 0;
+		var chartdata = [
+			{}
+		];
+		var svg = dimple.newSvg("body", 800, 600);
+		var chart = new dimple.chart(svg, chartdata);
+		var xaxis = chart.addCategoryAxis("x", "Time");
+		var yaxis = chart.addMeasureAxis("y", "Rate");
+		
+		chart.addSeries(null, dimple.plot.line);
+		yaxis.overrideMin = 0.5;
+		yaxis.overrideMax = 0.7;
+		chart.draw()
+		
+		App.controller('home', function (page) {
+			// put stuff here
+		});
+		
+		function getInput() {
+			from_input = document.getElementById("input1").value;
+			to_input = document.getElementById("input2").value;
+			getRate(from_input, to_input);
+		}
+		
+		function getRate(from, to) {
+			var script = document.createElement('script');
+			script.setAttribute('src', "http://query.yahooapis.com/v1/public/yql?q=select%20rate%2Cname%20from%20csv%20where%20url%3D'http%3A%2F%2Fdownload.finance.yahoo.com%2Fd%2Fquotes%3Fs%3D"+from+to+"%253DX%26f%3Dl1n'%20and%20columns%3D'rate%2Cname'&format=json&callback=parseExchangeRate");
+			document.body.appendChild(script);
+		}
+
+		function parseExchangeRate(data) {
+			var name = data.query.results.row.name;
+			var rate = parseFloat(data.query.results.row.rate, 10);
+			var div = document.getElementById('InfoArea');
+			div.innerHTML = 'Exchange rate ' + name + ' is ' + rate;
+			//div.innerHTML = 'Exchange rate ' + name + ' is ' + rate + ", total readings is " + chartdata.length;
+			var ctime = get_Time();
+
+			if(first) {
+				first = false;
+				chartdata[0] = {"Time": ctime, "Rate": rate};
+				c_min = yaxis.overrideMin = chartdata[0].Rate - 0.5;
+				c_max = yaxis.overrideMax = chartdata[0].Rate + 0.5;
+			} else {
+				chartdata.push( {"Time": ctime, "Rate": rate} );
+			}
+			
+			
+			
+			chart.addSeries(null, dimple.plot.line);
+			chart.draw();
+		}
+		
+		function get_Time() {
+			//var current_time = new Date().toTimeString().split(" ")[0];
+			var current_time = new Date();
+			//console.log(current_time);
+			return current_time;
+		}
+		
+		function download() {
+			
+			if(from_input || to_input) {
+				var pom = document.createElement('a');
+				pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(JSON.stringify(chartdata)));
+				pom.setAttribute('download', from_input + ".to." + to_input +".txt");
+				
+				if(document.createEvent) {
+					var event = document.createEvent('MouseEvents');
+					event.initEvent('click', true, true);
+					pom.dispatchEvent(event);
+				}
+				else {
+					pom.click();
+				}
+			} else {
+				console.log("No data");
+			}
+		}
+
+		try {
+			App.restore();
+		} catch (err) {
+			App.load('home');
+		}
+    </script>
+  </body>
+</html>
